@@ -56,6 +56,25 @@ com.zspace.spark_<ver>-<rev>_amd64.deb
 | 文件名无中文 | 指 **deb 文件名**；官方二进制里的中文主程序名属厂商原样，保留 |
 | 不改官方二进制 | 商业软件只能投稿官网可免费下载的版本，**不得改动官方二进制和配置** |
 
+### 运行时与发行版兼容性
+
+包**不绑死 deepin-wine**，任何装了 Wine 的发行版都能装能跑：
+
+```
+Depends: deepin-wine10-stable | deepin-wine11-stable | deepin-wine8-stable
+       | deepin-wine | wine64 | wine | wine-stable
+```
+
+- apt 从左往右找第一个可用的：Deepin/UOS 上仍选 deepin-wine10，行为不变；
+  其它发行版退到 `wine64`/`wine`。
+- **不要**把 `deepin-wine-helper` 写回 Depends——它没被任何脚本调用过，
+  写进去只会把非 Deepin 发行版挡在门外（已加自检，见 checklist E1）。
+- 启动器支持 `WINE=<命令>` 强制指定运行时，便于排查。
+- `zc_find_wineserver` 必须从**选中的** wine 往回推配套的 wineserver；
+  先猜 `/opt/deepin-wine*` 会拿错版本，报 `version mismatch 933/891`。
+- 非 Deepin 环境的中文渲染依赖发行版自带 CJK（`zc_have_yahui` 不成立时自动跳过字体修正），
+  观感会和 Deepin 上略有差异，属预期。
+
 ## 3. 启动器的职责（`packaging/run.sh`）
 
 按顺序：

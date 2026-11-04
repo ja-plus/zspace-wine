@@ -70,7 +70,22 @@ sudo apt install ./build/com.zspace.spark_<版本>-<修订>_amd64.deb
 
 ## 依赖
 
-`7z`、`dpkg-deb`、`curl`、`python3`、`xz`；运行时需要 `deepin-wine10-stable`（或 11/8）。
+**构建**：`7z`、`dpkg-deb`、`curl`、`python3`、`xz`
+
+**运行**：任意 Wine。Deepin/UOS 上优先用 `deepin-wine10-stable`（中文/输入法兼容性最好），
+其它发行版用自带的 wine 也可以：
+
+```
+Depends: deepin-wine10-stable | deepin-wine11-stable | deepin-wine8-stable
+       | deepin-wine | wine64 | wine | wine-stable
+```
+
+apt 会从左往右挑第一个装得上的，Deepin 行为不变。
+想强制指定运行时：`WINE=wine-stable /opt/durapps/com.zspace.spark/files/run.sh`。
+
+**发行版兼容性**：包本身是标准 amd64 deb，任何发行版都能装；
+`/opt/durapps/`、`.spark` 后缀、`postrm` 清容器这些是星火约定，装到别处无害。
+没有微软雅黑的发行版上会自动跳过字体修正、回落到自带 CJK，观感略不同属预期。
 
 ## 已知限制
 

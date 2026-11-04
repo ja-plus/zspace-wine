@@ -75,3 +75,31 @@
 3. staging 目录用**唯一名**（带 PID），不要"先删后拷"：
    既避免残留内容被 `cp -a` 拷成 `app/app`（包体翻倍、条目翻倍），
    也避开受限环境下批量删除被安全策略拦下的情况。
+
+## 2026-11-04 去掉 deepin-wine 绑定，产物 2.46.2026101501-2
+
+- 背景：用户问「是不是只有 Deepin 环境能跑」。结论是卡在**运行时依赖**，不是桌面环境：
+  原 Depends 里的 `deepin-wine-helper` 是硬依赖且**从未被任何脚本调用**，
+  加上 run.sh 只认 `deepin-wine*`，把其它发行版挡在门外。
+- 决定/结论：
+  - Depends 改为 `deepin-wine10-stable | deepin-wine11-stable | deepin-wine8-stable
+    | deepin-wine | wine64 | wine | wine-stable`（去掉 deepin-wine-helper）。
+    apt 从左往右挑，Deepin 上仍选 deepin-wine10，行为不变。
+  - run.sh 探测链加 `wine64`/`wine`/`wine-stable`，并支持 `WINE=<命令>` 强制指定。
+  - `zc_find_wineserver` 改成从**选中的** wine 往回推配套 wineserver
+    （包装脚本 → 解析它 exec 的真 wine；symlink → readlink -f 后看真实目录），
+    **兜底故意不猜 `/opt/deepin-wine*`**：同时装两种 wine 时猜错会杀掉另一套的
+    wineserver、报 version mismatch；找不到就返回失败让调用方跳过 kill。
+  - 非 Deepin 环境的中文渲染依赖发行版自带 CJK（`zc_have_yahui` 不成立时跳过字体修正）。
+- 证据：`scripts/selftest_wineserver.sh` 5 场景全绿（包装脚本/普通 wine/symlink/
+  无配套/不存在）；`build_deb.sh --rev 2` 复核 A+B+E 共 19 项全过，
+  Depends 已无 deepin-wine-helper、含 wine64。
+- 影响：任何装了 Wine 的发行版都能装能跑；星火投稿不受影响（Deepin 上 apt 仍选第一项）。
+  **E6（非 Deepin 真机/容器冒烟）尚未做**，留给有需要时装个容器补测。
+
+### 产物 2.46.2026101501-2
+
+- 路径：`build/com.zspace.spark_2.46.2026101501-2_amd64.deb`（309.7 MB）
+- SHA256 `24b83b7f8e35f41e2715102516438e3c889a37bfb5f17eacedcd24a112ff7833`
+- 源包：`packages/zspace_windows_2.46.2026101501_101619.exe`
+- 上一条记录里的 `-1` **已被本条取代**（原因：依赖与运行时探测不具可移植性）。

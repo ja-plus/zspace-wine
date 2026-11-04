@@ -66,6 +66,17 @@ grep -c 'wqy-microhei' ~/.deepinwine/com.zspace.spark/user.reg     # 应为 0
 | D2 | 本次偏差说明 | 如果流程和 `workflow.md` 不一致，写清原因 | ✅ |
 | D3 | 版本表更新 | `.agents/sources.md` 的"当前已知版本"追加了本次版本 | ✅ |
 
+## E. 可移植性（不绑死 deepin-wine）
+
+| # | 检查项 | 怎么验 | 必须 |
+|---|---|---|---|
+| E1 | 依赖里没有 `deepin-wine-helper` | `dpkg-deb -I $DEB \| grep deepin-wine-helper` 无命中 | ✅ |
+| E2 | 依赖含普通 wine 备选 | `dpkg-deb -I $DEB \| grep wine64` 有命中 | ✅ |
+| E3 | 支持 `WINE=` 覆盖 | run.sh 里 `WINE` 环境变量分支存在，指定不存在的运行时会明确报错 | ✅ |
+| E4 | 探测链含普通 wine | run.sh 的候选列表含 `wine64`/`wine`/`wine-stable` | ✅ |
+| E5 | wineserver 归属正确 | `scripts/selftest_wineserver.sh` 全绿（5 个场景：包装脚本 / 普通 wine / symlink / 无配套 / 不存在） | ✅ |
+| E6 | 非 Deepin 冒烟 | 在只装普通 wine 的发行版/容器里：能 `apt install`、能启动出窗口 | ⬜ 需真机/容器 |
+
 ---
 
 ## 结论模板（写进 memory.md 时用）

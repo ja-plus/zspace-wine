@@ -135,21 +135,51 @@ zc_strip_wqy_fonts() {
     done
 }
 
-# 找到本运行时的 wineserver（deepin-wine 的包装脚本里调的是 .../bin/wine）
+# 找到**本运行时配套的** wineserver。
+# 不能先猜 /opt/deepin-wine*：机器上同时装了普通 wine 时会拿到另一套，
+# 报 version mismatch（933/891 之类）。必须从实际选中的 wine 往回推。
 zc_find_wineserver() {
-    local cand
-    for cand in /opt/deepin-wine*/bin/wineserver \
-                "$(dirname "$(command -v "$WINE_CMD" 2>/dev/null)")/wineserver"; do
-        [ -x "$cand" ] && { printf '%s' "$cand"; return 0; }
+    local real dir
+    real="$(command -v "$WINE_CMD" 2>/dev/null)" || return 1
+
+    # 包装脚本（deepin-wine10-stable 之类）只是 exec 了真正的 wine，
+    # wineserver 在那个 wine 旁边，不在包装脚本旁边
+    if head -1 "$real" 2>/dev/null | grep -q '^#!'; then
+        dir="$(grep -oE '/[^ ]*/bin/wine' "$real" 2>/dev/null | head -1)"
+        dir="${dir%/wine}"
+        if [ -n "$dir" ] && [ -x "$dir/wineserver" ]; then
+            printf '%s' "$dir/wineserver"; return 0
+        fi
+    fi
+
+    # 依次看：命令所在目录、symlink 解析后的真实目录
+    for dir in "$(dirname "$real")" \
+               "$(dirname "$(readlink -f "$real" 2>/dev/null)")"; do
+        [ -n "$dir" ] && [ -x "$dir/wineserver" ] && { printf '%s' "$dir/wineserver"; return 0; }
     done
+
+    # 兜底故意不猜 /opt/deepin-wine*：
+    # 机器上同时装了两种 wine 时，猜错会把另一套的 wineserver 杀掉，
+    # 报 version mismatch。找不到配套的就返回失败，让调用方跳过 kill。
     return 1
 }
 
+# 运行时选择：deepin-wine 优先（中文/输入法等兼容性最好），
+# 没有就退到发行版自带的 wine。可用 WINE 环境变量强制指定。
 WINE_CMD=""
-for w in deepin-wine10-stable deepin-wine11-stable deepin-wine8-stable deepin-wine; do
-    if command -v "$w" >/dev/null 2>&1; then WINE_CMD="$w"; break; fi
-done
-[ -z "$WINE_CMD" ] && die "未找到 deepin-wine 运行时，请先安装 deepin-wine10-stable"
+if [ -n "${WINE:-}" ]; then
+    if command -v "$WINE" >/dev/null 2>&1; then
+        WINE_CMD="$WINE"
+    else
+        die "环境变量 WINE 指定的运行时不存在：$WINE"
+    fi
+else
+    for w in deepin-wine10-stable deepin-wine11-stable deepin-wine8-stable deepin-wine \
+             wine64 wine wine-stable; do
+        if command -v "$w" >/dev/null 2>&1; then WINE_CMD="$w"; break; fi
+    done
+fi
+[ -z "$WINE_CMD" ] && die "未找到 Wine 运行时。请安装 deepin-wine10-stable（推荐）或发行版自带的 wine；也可用 WINE=<命令> 指定"
 
 ZC_WINESERVER=$(zc_find_wineserver)
 

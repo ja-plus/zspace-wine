@@ -90,8 +90,10 @@ scripts/build_deb.sh --rev 2      # 指定 Debian 修订号（默认 1）
 
 ## 3. 事实与口径
 
-- 本项目**只做包装**：拿官方 Windows 安装包，用 deepin-wine 跑起来，
+- 本项目**只做包装**：拿官方 Windows 安装包，用 Wine 跑起来，
   打成符合星火规范的 deb。**不修改、不破解、不替换官方二进制。**
+  运行时**不绑死 deepin-wine**：Deepin/UOS 优先 deepin-wine10，其它发行版退到普通 wine
+  （依赖写法见 `.agents/workflow.md`，别把 `deepin-wine-helper` 写回去）。
 - 星火上架红线（详见 `.agents/workflow.md`）：
   - 装到 `/opt/durapps/<包名>/`
   - 包名必须以 `.spark` 结尾，desktop 名必须等于包名

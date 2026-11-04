@@ -138,7 +138,7 @@ Version: $DEB_VERSION
 Architecture: amd64
 Maintainer: Local Build <local@localhost>
 Installed-Size: $INSTALLED_SIZE
-Depends: deepin-wine10-stable | deepin-wine11-stable | deepin-wine8-stable, deepin-wine-helper
+Depends: deepin-wine10-stable | deepin-wine11-stable | deepin-wine8-stable | deepin-wine | wine64 | wine | wine-stable
 Section: net
 Priority: optional
 Homepage: https://www.zspace.cn
@@ -171,6 +171,15 @@ grep -q '\./usr/share/applications/'"$PKG_NAME"'\.desktop$' "$LIST" \
 grep -q '\./usr/bin/'"$PKG_NAME"'$' "$LIST" \
     || die "产物里找不到启动器 /usr/bin/$PKG_NAME"
 dpkg-deb -I "$DEB" | grep -q 'postrm' || die "产物缺 postrm（星火要求卸载时清容器）"
+
+# 依赖可移植性：不能把别的发行版挡在门外
+if dpkg-deb -I "$DEB" | grep -q 'deepin-wine-helper'; then
+    die "Depends 里还有 deepin-wine-helper —— 非 Deepin 发行版装不上，且它并没有被用到"
+fi
+if ! dpkg-deb -I "$DEB" | grep -q 'wine64'; then
+    die "Depends 里缺普通 wine 备选项（wine64/wine），其它发行版会装不上"
+fi
+ok "依赖可移植性检查通过（deepin-wine 优先，普通 wine 兜底）"
 ok "产物结构复核通过"
 
 SHA=$(sha256sum "$DEB" | cut -d' ' -f1)
