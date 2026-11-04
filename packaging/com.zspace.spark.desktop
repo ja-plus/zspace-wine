@@ -9,4 +9,7 @@ Icon=com.zspace.spark
 Terminal=false
 Categories=Network;FileTransfer;
 Keywords=zspace;极空间;nas;cloud;
+# Wine 窗口的 WM_CLASS 是 ("极空间.exe", "Wine")，不写这行 Dock 匹配不到本条目，
+# 会回落到 Wine 自带的酒杯图标
+StartupWMClass=Wine
 StartupNotify=true
