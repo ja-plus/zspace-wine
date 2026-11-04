@@ -1,0 +1,24 @@
+# 安装包与产物都不进 git（体积大，且官方二进制不宜再分发）
+packages/*
+!packages/.gitkeep
+
+build/*
+!build/.gitkeep
+
+logs/*
+!logs/.gitkeep
+
+.state/
+
+# 临时与中间产物
+*.part
+*.tmp
+*.deb
+*.exe
+*.7z
+__pycache__/
+
+# 编辑器
+.vscode/
+.idea/
+*~

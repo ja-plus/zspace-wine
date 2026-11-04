@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=极空间
+Name[en]=ZSpace
+GenericName=私有云客户端
+Comment=极空间私有云客户端(Wine)
+Exec=/opt/durapps/com.zspace.spark/files/run.sh %U
+Icon=com.zspace.spark
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=zspace;极空间;nas;cloud;
+StartupNotify=true

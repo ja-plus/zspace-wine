@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+# 星火 Wine 应用规范:卸载时清理容器,避免 ~/.deepinwine 残留
+if [ "$1" = "purge" ] || [ "$1" = "remove" ]; then
+    rm -rf "$HOME/.deepinwine/com.zspace.spark" 2>/dev/null || true
+    for u in /home/*; do
+        [ -d "$u/.deepinwine/com.zspace.spark" ] && rm -rf "$u/.deepinwine/com.zspace.spark" 2>/dev/null || true
+    done
+fi
+command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database -q /usr/share/applications || true
+exit 0
