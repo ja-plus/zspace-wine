@@ -26,29 +26,47 @@
 | # | 检查项 | 怎么验 | 必须 |
 |---|---|---|---|
 | B1 | 脚本语法 | `bash -n` 过 run.sh / postinst / postrm | ✅ |
-| B2 | 字体修正在位 | run.sh 含 `FONTCONFIG_FILE`，且含排除 `wqy` 的逻辑 | ✅ |
-| B3 | fontconfig 配置可生成 | 跑一次启动器后 `~/.deepinwine/com.zspace.spark/fontconfig.conf` 存在 | ✅ |
-| B4 | 文泉驿不进字体表 | `grep -c wqy-microhei ~/.deepinwine/com.zspace.spark/system.reg` 为 0 | ✅ |
-| B5 | 落到微软雅黑 | 见下方"字面判定" | ✅ |
+| B2 | 字体修正在位 | run.sh 含 `FONTCONFIG_FILE`、含 `wqy` 排除、含私有字体目录 `ZC_FONT_DIR` | ✅ |
+| B3 | fontconfig 配置可生成 | 跑一次启动器后 `~/.deepinwine/com.zspace.spark/fontconfig.conf` 存在，且含 `zc-fontconf-v3` | ✅ |
+| B4 | 坏字体不进字体表 | `grep -c wqy-microhei` 和 `grep -c NotoSansSC` 在 system.reg 里都为 0 | ✅ |
+| B5 | 正文不是 Thin 字体 | 见下方"字面判定" | ✅ |
 | B6 | `unset NODE_OPTIONS` | run.sh 里有，否则 Electron 会被当纯 Node 启动 | ✅ |
 | B7 | `unset WAYLAND_DISPLAY` | run.sh 里有，否则 treeland 下窗口建不出来 | ✅ |
+| B8 | 私有字体目录建成 | `ls ~/.deepinwine/com.zspace.spark/fonts \| wc -l` > 100，且里面**没有** `NotoSansSC-VF.ttf` | ✅ |
 
 ### 字面判定（B5 怎么验）
 
-应用 CSS 的字体栈是
-`PingFang SC, Source Han Sans CN, WenQuanYi Micro Hei, Microsoft YaHei, sans-serif`。
-目标是让中文落到 **微软雅黑**（与官方 Windows 客户端一致）。
+页面 CSS 的字体栈是坏的（全角逗号 `"Microsoft YaHei，Arial，Verdana，sans-serif"`），
+Chromium 会走默认回退字体。判定目标是**回退结果不能是那个 Thin/Light 可变字体**。
 
-最快的一种判定方式：起一个最小 Electron 窗口，用 canvas 把同一串中文分别按
-`"Microsoft YaHei"` 和应用字体栈画出来，比对像素哈希是否一致。
-（既有探针在 `/home/japlus/zs-fontprobe`，可复用。）
-
-拿不到探针时，退而求其次：
+唯一可靠的验法（CDP，Chromium 自己报）：
 
 ```bash
-grep -c 'wqy-microhei' ~/.deepinwine/com.zspace.spark/system.reg   # 应为 0
-grep -c 'wqy-microhei' ~/.deepinwine/com.zspace.spark/user.reg     # 应为 0
+packaging/run.sh --remote-debugging-port=9222
+# 连 page 的 ws，对正文元素调 CSS.getPlatformFontsForNode
 ```
+
+判据：
+
+- ❌ `Noto Sans SC` —— 这就是 `NotoSansSC-VF.ttf`（默认实例 Thin/Light），字细的元凶
+- ✅ `Noto Sans CJK SC` —— 常规字重，当前目标
+- ✅ `Microsoft YaHei` —— 也正常
+
+辅助快验（只能证明坏字体不在字体表里，不能证明页面用了谁）：
+
+```bash
+grep -c 'NotoSansSC' ~/.deepinwine/com.zspace.spark/system.reg   # 应为 0
+ls ~/.deepinwine/com.zspace.spark/fonts/NotoSansSC-VF.ttf        # 应不存在
+```
+
+## B'. 性能
+
+| # | 检查项 | 怎么验 | 必须 |
+|---|---|---|---|
+| F1 | 启动参数在位 | run.sh 里有 `--disable-gpu-compositing`，且支持 `ZSPACE_GPU_COMPOSITING=1` 关掉 | ✅ |
+| F2 | 帧率达标 | CDP 里跑 180 帧动画，等效 fps ≥ 58，p95 ≤ 20ms | ✅ |
+| F3 | 空闲 CPU 合理 | 按 /proc 时间差采样 10s，全进程合计 < 15% | ✅ |
+| F4 | 画面无异常 | 截图无黑块/花屏，中文正常显示 | ✅ |
 
 ## C. 安装与卸载
 
