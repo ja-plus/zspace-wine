@@ -18,6 +18,39 @@ unset NODE_OPTIONS ELECTRON_RUN_AS_NODE ELECTRON_NO_ATTACH_CONSOLE NODE_PATH
 # xdg_toplevel_icon_manager_v1 / ext_foreign_toplevel_list_v1，会导致窗口创建失败
 unset WAYLAND_DISPLAY
 
+# ════════════════════════════════════════════════════════════════
+# 强制直连：清掉桌面会话里残留的代理环境变量
+# ----------------------------------------------------------------
+# 代理类工具（Watt Toolkit / Steam++、Clash、iKuuu 等）会往桌面会话注入
+#   http_proxy / https_proxy / all_proxy
+# 这些变量会被 Wine 原样透传进容器，Electron 主进程的 Node 侧（axios）会无条件走代理。
+# 它们的 no_proxy 往往只有 10.*/172.16.*/192.168.* 而**不含 127.0.0.1**，
+# 于是连极空间自己的本机服务也会被塞进代理：
+#   127.0.0.1:13579  应用内置网页代理（AppStore / syncApi / healthcheck）
+#   127.0.0.1:8384   syncthing 状态接口
+# 代理一旦没在监听（工具退出、换端口、只开了 SOCKS），整台应用的网络就全挂：
+#   main.log   → getLocalFoldersInfo error: ... connect ECONNREFUSED 127.0.0.1:7890
+#   player.log → TcpRecvInfoShow {"show_info":"connect ECONNREFUSED 127.0.0.1:7890"}
+#   界面表现   → 点开视频弹「connect ECONNREFUSED 127.0.0.1:7890」，同步/应用商店全部报错
+# 注意：Chromium 侧读的是 Windows 系统代理（Wine 侧为直连），所以海报墙能正常显示，
+#       只有主进程发出的请求会挂 —— 别被「界面能开」误导成网络本身没问题。
+#
+# 2026-11-04 实测（本机 gsettings 里 mode=none，但 host 仍是 127.0.0.1:7890）：
+#   curl 直连 127.0.0.1:13579            → 302
+#   同一请求加 http_proxy=…:7890         → curl exit 7（连接被拒）
+#
+# 极空间是局域网 NAS 客户端，本身不需要经过科学上网代理，直连是正确的默认行为。
+# 想临时恢复继承来的代理：ZSPACE_KEEP_PROXY=1
+# ════════════════════════════════════════════════════════════════
+if [ "${ZSPACE_KEEP_PROXY:-0}" != "1" ]; then
+    unset http_proxy https_proxy all_proxy ftp_proxy
+    unset HTTP_PROXY HTTPS_PROXY ALL_PROXY FTP_PROXY
+    # 兜底：万一有组件绕开上面的清理自行读系统代理，至少让本机与内网不经代理
+    ZC_NO_PROXY="localhost,127.0.0.1,::1,10.*,172.16.*,172.17.*,172.18.*,172.19.*,172.20.*,172.21.*,172.22.*,172.23.*,172.24.*,172.25.*,172.26.*,172.27.*,172.28.*,172.29.*,172.30.*,172.31.*,192.168.*"
+    export no_proxy="$ZC_NO_PROXY"
+    export NO_PROXY="$ZC_NO_PROXY"
+fi
+
 TARGET_DIR="$WINEPREFIX/drive_c/Program Files/zspace"
 
 # 通知必须在后台执行：任何前台的 zenity/notify 都可能阻塞主流程

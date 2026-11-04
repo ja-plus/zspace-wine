@@ -220,3 +220,61 @@
   ③ `.desktop` 加 `StartupWMClass=Wine`（DDE 上图标仍未解决，见 workflow §3.7）
 - 验收：启动后 CDP 查 `hasDlg=false`；main.log 无 uncaughtException；
   X11 会话固定负载滚动 80–98fps、p95 18.7ms、0 帧 >33ms。
+
+## 2026-11-04 视频放不了：代理环境变量污染（connect ECONNREFUSED 127.0.0.1:7890）
+
+- 背景：点开视频弹「connect ECONNREFUSED 127.0.0.1:7890」，同时同步/应用商店也在报同样的错，
+  但海报墙和列表能正常显示，容易误判成「某一部片源有问题」或「解码器坏了」。
+- 根因：桌面会话被代理工具（Watt Toolkit/Steam++、Clash、iKuuu 之流）注入了
+  `http_proxy/https_proxy/all_proxy=http://127.0.0.1:7890`，Wine 原样透传进容器，
+  Electron 主进程 Node 侧（axios）会无条件走代理；这些工具给的 `no_proxy` 只有
+  10.*/172.16.*/192.168.* 和 `api.steampp.net`，**不含 127.0.0.1**，
+  于是连应用自己的本机服务也被塞进代理：
+  `127.0.0.1:13579`（内置网页代理）与 `127.0.0.1:8384`（syncthing）全部失败。
+  代理一停（工具退出/换端口/只开 SOCKS）就是全线 ECONNREFUSED。
+- 为什么界面还能用：Chromium 侧读的是 Windows 系统代理（本机 gsettings 是 mode=none → 直连），
+  只有主进程发出的请求挂掉。**判断「网络是否正常」不能只看界面能不能开。**
+- 决定：`packaging/run.sh` 在启动前 unset 所有代理变量，并把
+  `no_proxy/NO_PROXY` 兜底写成含 `localhost,127.0.0.1,::1` 的内网列表；
+  临时要恢复继承来的代理用 `ZSPACE_KEEP_PROXY=1`。极空间是局域网 NAS 客户端，直连是正确默认。
+- 证据：
+  - `tr '\0' '\n' < /proc/<pid>/environ` 里能看到上述三个变量；
+  - `curl 127.0.0.1:13579` → 302；同一请求加 `http_proxy=…:7890` → curl exit 7；
+  - 修复后重启，新增 1307 行日志里 `7890` 出现 0 次，13579/8384 正常监听，
+    player.log 出现 `picture displayed late`（有画面帧在跑）。
+- 顺带：本机 gsettings 里 `org.gnome.system.proxy.http host=127.0.0.1 port=7890` 是残留脏数据
+  （mode 已是 none），DDE 会话环境变量也没被清 —— 属于代理工具没收拾干净，与本项目无关。
+
+### 产物 2.46.2026101501-6
+
+- 路径：`build/com.zspace.spark_2.46.2026101501-6_amd64.deb`（309.8 MB）
+- SHA256 `ce80abf8fbb6d5db99a3e9194521ab63497cfefb06cc5ddceae7dea0c20f970f`
+- 源包：`packages/zspace_windows_2.46.2026101501_101619.exe`
+- 变更：唯一实质改动是 `run.sh` 新增「强制直连」段落（unset 代理环境变量 + no_proxy 兜底，
+  可 `ZSPACE_KEEP_PROXY=1` 关闭）。
+- 验收：A1–A10、B1/B2/B6/B7、E1–E4、F1 全过；B3–B5、F2–F4 沿用 -5 结论（字体/性能相关代码未动）；
+  C1/C2 待用户安装确认。
+- 修复效果实测（用仓库脚本直接拉起，非安装版）：新增 1307 行日志中 `7890` 出现 0 次，
+  13579/8384 正常监听，player.log 出现 `picture displayed late`，视频出画面。
+
+## 2026-11-04 强制 d3d11va 实测：不降反升，Wine 的「硬解」是 avcodec 披皮
+
+- 背景：用户质疑「Wine 连游戏都能跑，为什么硬解不行」，要求实测验证。
+- 做法：在容器 `%APPDATA%\vlc\vlcrc` 注入 `[avcodec] avcodec-hw=d3d11va` + `[core] verbose=2`
+  （已证实 libvlc 会读这份配置，不是我瞎猜）。同一片源（复联4 UHD 3840x1608 HDR10 HEVC）播放采样。
+- 证据：
+  - 日志 `looking for video decoder module matching "any": 18 candidates` →
+    **`using video decoder module "avcodec"`**（解码器没变）；
+  - 同时列出 4 个硬件格式 `dxva2_vld / d3d11va_vld / d3d11 / cuda`，并 `trying format d3d11va_vld`；
+  - `surface dimensions (3840x1664) differ from avcodec dimensions (3840x1632)`；
+  - vout 用 `direct3d9`。
+  - **CPU：默认软解 329% → 强制 d3d11va 426%（+30%）**；
+    画面出现大量 `picture is too late to be displayed`（掉帧比默认更严重）。
+- 结论：Wine 提供了 `ID3D11VideoDecoder` 这层接口（VLC 因此「看得见」硬解），
+  但底层仍是 avcodec 软件解码，解完再拷进 d3d11 纹理 —— 白白多一次显存往返，所以更慢。
+  上游 Wine 所有模块都不链接 libva（`ldd` 零命中），没有 GPU 解码后端；
+  DXVK 也只做渲染、不实现任何 D3D11 video API。**此路不通，不要再试。**
+- 影响：`vlcrc` 实验配置已移除（备份 `/tmp/vlcrc.experiment.bak`），保持默认软解。
+  4K 原盘想不卡只有两条：① 客户端切 NAS 转码档（解 1080p H.264）；
+  ② 抓 `/splay/<token>/<file>` 流给 Linux 原生播放器走 VA-API
+  （实测同一片源：软解 5.14s CPU/5s vs VA-API 3.58s，且原生播放无回读开销）。
