@@ -278,3 +278,16 @@
   4K 原盘想不卡只有两条：① 客户端切 NAS 转码档（解 1080p H.264）；
   ② 抓 `/splay/<token>/<file>` 流给 Linux 原生播放器走 VA-API
   （实测同一片源：软解 5.14s CPU/5s vs VA-API 3.58s，且原生播放无回读开销）。
+
+## 2026-11-21 原生 Linux 部分已拆到独立仓库 zspace-linux
+
+- 新仓库：<https://github.com/ja-plus/zspace-linux>（公开），分支 `main`，
+  从本仓库 `research/linux-native-re` 拉出并保留历史；`native/` 等原生代码
+  已随仓库迁走，本仓库今后**只做 Wine 版**。
+- 原分支 `research/linux-native-re` 已删除。需要追溯原生实现的历史，
+  去 zspace-linux 的 `git log`（那条线完整保留）。
+- `packaging/`、`scripts/{build_deb,check_update,download,selftest_wineserver}.sh`
+  不受影响，master 本来也不含 `native/`。
+- 注意：拆分时发现 `build_native_deb.sh` 的图标取自 `packaging/icons/hicolor`，
+  新仓库已改为自带 `packaging-native/icons/`；**本仓库不要删 `packaging/icons/`**，
+  否则会破坏 zspace-linux 的历史可复现性（虽然不影响本仓库打 Wine 包）。

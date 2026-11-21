@@ -8,6 +8,9 @@
 > 用支持 AGENTS.md 的 Agent 打开本目录，它会自动接手"查新版 → 问你要不要下 → 打包 → 自检"这一整套。
 > 你自己只需要做决定，不用记命令。
 
+> **原生 Linux 版在独立仓库：** [zspace-linux](https://github.com/ja-plus/zspace-linux)。
+> 本仓库只保留 Wine 版打包；两个包名不同（`com.zspace.spark` / `com.zspace.native.spark`），可并存安装。
+
 ---
 
 ## 你需要知道的三件事
