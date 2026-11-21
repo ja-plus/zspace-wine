@@ -291,3 +291,9 @@
 - 注意：拆分时发现 `build_native_deb.sh` 的图标取自 `packaging/icons/hicolor`，
   新仓库已改为自带 `packaging-native/icons/`；**本仓库不要删 `packaging/icons/`**，
   否则会破坏 zspace-linux 的历史可复现性（虽然不影响本仓库打 Wine 包）。
+
+- 2026-11-21 补充：分支删除后，工作区里遗留的未跟踪 `native/`（3.1 GB，
+  含 libzrpc/player 的 target 缓存和 Electron 载荷）已一并删除。
+  删前核对：只有 `mount/selftest/out/*` 这 17 个测试输出是旧的独有文件，
+  源码与载荷在 zspace-linux 都有。本仓库现在是纯 Wine 工程：
+  `packaging/` `scripts/` `packages/` `build/` `logs/`。
